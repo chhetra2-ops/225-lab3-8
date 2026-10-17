@@ -1,61 +1,35 @@
-# =====================================================
-# MongoDB StatefulSet + Services
-# - Headless Service "mongo" for stable DNS to pods
-# - ClusterIP Service "mongo-service" for app access
-# - StatefulSet "mongo" (1 replica) using Secret creds
-# =====================================================
 
-# -----------------------------------------------------
-# Headless Service (REQUIRED FOR STATEFULSET)
-# Provides stable network IDs for each pod (mongo-0, …)
-# Not used by mongo-express directly.
-# -----------------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo                     # Must match StatefulSet.spec.serviceName
+  name: mongo
   labels:
     app: mongo
 spec:
-  clusterIP: None                 # Headless service
+  clusterIP: None
   selector:
     app: mongo
   ports:
     - name: mongo
-      port: 27017                 # Service port (pod targetPort defaults to same)
-
+      port: 27017
+      targetPort: 27017
 ---
-# -----------------------------------------------------
-# Client-Facing Service
-# "mongo-express" will connect to this DNS name:
-#   mongo-service (port 27017)
-# -----------------------------------------------------
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo-service             # <---- This is what mongo-express uses
+  name: mongo-service
   labels:
     app: mongo
 spec:
-  type: ClusterIP                 # Internal-only access inside the cluster
+  type: ClusterIP
   selector:
     app: mongo
   ports:
     - name: mongo
       protocol: TCP
-      port: 27017                 # Cluster-internal port
-      targetPort: 27017           # Container port
-
+      port: 27017
+      targetPort: 27017
 ---
-# -----------------------------------------------------
-# MongoDB StatefulSet
-# Uses credentials from Secret "mongo-secret":
-#   - mongo-root-username
-#   - mongo-root-password
-# NOTE: This example runs without persistent storage
-#       for simplicity. Add a volumeClaimTemplates
-#       block to persist data (PVC) if desired.
-# -----------------------------------------------------
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -63,8 +37,8 @@ metadata:
   labels:
     app: mongo
 spec:
-  serviceName: mongo              # Must match headless Service name above
-  replicas: 1                     # One MongoDB pod (mongo-0)
+  serviceName: mongo
+  replicas: 1
   selector:
     matchLabels:
       app: mongo
@@ -75,30 +49,22 @@ spec:
     spec:
       containers:
         - name: mongo
-          image: mongo:6          # Explicit version tag recommended
+          image: mongo:6
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 27017
               name: mongo
-
-          # -----------------------------
-          # Credentials from Secret
-          # -----------------------------
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: mongo-secret           # Same Secret used by mongo-express
+                  name: mongo-secret
                   key: mongo-root-username
             - name: MONGO_INITDB_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: mongo-secret
                   key: mongo-root-password
-
-          # -----------------------------
-          # Basic health checks (optional but recommended)
-          # -----------------------------
           readinessProbe:
             exec:
               command: ["mongosh", "--eval", "db.adminCommand('ping')"]
@@ -106,7 +72,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 6
-
           livenessProbe:
             exec:
               command: ["mongosh", "--eval", "db.adminCommand('ping')"]
@@ -114,30 +79,9 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 6
-
-          # -----------------------------
-          # Ephemeral storage (for labs)
-          # Replace with PVC for persistence
-          # -----------------------------
           volumeMounts:
             - name: mongo-data
               mountPath: /data/db
-
       volumes:
         - name: mongo-data
-          emptyDir: {}             # Non-persistent; use PVC for real persistence
-
-  # ---------------------------------------------------
-  # To PERSIST data, replace the "volumes/emptyDir"
-  # above with this PVC template (uncomment and adjust):
-  #
-  # volumeClaimTemplates:
-  #   - metadata:
-  #       name: mongo-data
-  #     spec:
-  #       accessModes: ["ReadWriteOnce"]
-  #       resources:
-  #         requests:
-  #           storage: 5Gi
-  #       storageClassName: <your-storage-class>
-  # ---------------------------------------------------
+          emptyDir: {}
