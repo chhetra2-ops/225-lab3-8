@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKER_CREDENTIALS_ID = 'roseaw-dockerhub'
         GITHUB_URL = 'https://github.com/chhetra2-ops/225-lab3-8.git'
-        KUBECONFIG = credentials('roseaw-225')
+        KUBECONFIG = credentials('chhetra2-225')
     }
 
     stages {
@@ -15,7 +15,7 @@ pipeline {
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
                         url: "${GITHUB_URL}",
-                        credentialsId: 'roseaw-dockerhub'
+                        credentialsId: 'roseaw-github'
                     ]]
                 ])
             }
@@ -23,7 +23,6 @@ pipeline {
 
         stage('Build Mongo Stateful Set') {
             steps {
-                sh 'kubectl apply -f mongo-secret.yaml'
                 sh 'kubectl apply -f mongo.yaml'
                 sh 'kubectl apply -f mongo-configmap.yaml'
                 sh 'kubectl apply -f mongo-express.yaml'
