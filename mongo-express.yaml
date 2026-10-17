@@ -39,8 +39,6 @@ spec:
                 configMapKeyRef:
                   name: mongo-configmap
                   key: database_url
-      imagePullSecrets:
-        - name: docker-creds
 ---
 apiVersion: v1
 kind: Service
